@@ -14,4 +14,4 @@ int main()
 }
 ```
 
-![这是图片的名称](./../../../../src/.vuepress/public/logo.png)
+![这是图片的名称](./../../../../src/image/logo.png)
