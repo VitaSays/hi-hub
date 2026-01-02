@@ -3,7 +3,8 @@ home: true
 layout: Blog
 icon: house
 title: 博客主页
-heroImage: /assets/images/cover4.jpg
+# heroImage: /assets/images/cover4.jpg
+bgImage: /assets/images/cover4.jpg
 heroText: VitaLab
 heroFullScreen: true
 tagline: 万物归一，大道至简
