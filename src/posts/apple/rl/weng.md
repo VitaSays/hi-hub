@@ -13,5 +13,3 @@ int main()
     return 0;
 }
 ```
-
-![这是图片的名称](./../../../../src/image/logo.png)
