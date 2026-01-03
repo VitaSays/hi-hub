@@ -1,5 +1,6 @@
 ---
 title: RMPflow 运动生成扩展  # <-- 这决定了侧边栏显示的文字
+order: 1
 ---
 
 # Isaac Sim 扩展架构学习笔记

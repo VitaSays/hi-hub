@@ -1,6 +1,7 @@
 ---
 title: Lula Kinematics Solver 扩展架构解析  # <-- 这决定了侧边栏显示的文字
 shortTitle: Lula Kinematics Solver            # <-- (可选) 如果标题太长，导航栏会优先显示这个短标题
+order: 3
 ---
 # Lula Kinematics Solver 扩展架构解析
 
