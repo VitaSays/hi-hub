@@ -1,5 +1,5 @@
 ---
-title: 1 ARM 架构学习笔记
+title: 1 ARM 架构
 ---
 
 ## 1. 什么是 ARM 架构
