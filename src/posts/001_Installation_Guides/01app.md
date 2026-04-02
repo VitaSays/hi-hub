@@ -61,12 +61,32 @@ source image_env/bin/activate
 ```bash
 pip install tbparse pandas matplotlib seaborn
 ```
+## 📚 核心库功能简介
+
+
+
+### 1. **tbparse** —— 数据“翻译官”
+* **作用**：专门用于解析 TensorBoard 的二进制事件文件（`.tfevents`）。
+* **为什么用它**：TensorBoard 的原始数据是协议缓冲区（Protobuf）格式，人类无法直观读取。`tbparse` 能把这些复杂的二进制流一键转换成我们熟悉的 Pandas 表格（DataFrame）。
+
+### 2. **pandas** —— 数据“管家”
+* **作用**：Python 中最强大的数据处理工具，类似于“代码版的 Excel”。
+* **为什么用它**：它负责存储从日志里提取出来的成千上万个数据点。我们可以利用它轻松完成**数据清洗、按步数排序、指标筛选**以及**计算平滑平均值**。
+
+### 3. **matplotlib** —— 绘图“画板”
+* **作用**：Python 绘图界的“鼻祖”和基石。
+* **为什么用它**：它提供了极高的自由度。无论是调整坐标轴的字体（如 Times New Roman）、设置图片的分辨率（DPI），还是精确控制线条的粗细，都离不开它。它是我们生成 **.png** 或 **.pdf** 文件的核心引擎。
+
+### 4. **seaborn** —— 视觉“美妆师”
+* **作用**：基于 matplotlib 开发的高级绘图库。
+* **为什么用它**：它自带了一套非常优雅的学术配色方案和绘图风格（如 `ticks` 风格）。它能让我们只用几行代码，就画出带有**阴影区间**或**美观图例**的专业曲线，让图片瞬间告别“廉价感”。
 
 ---
 
+
 ## 五、具体功能实现
 
-### 1. 数据提取脚本 (`scripts/extract_data.py`)
+### 1. 创建数据提取脚本 (`scripts/extract_data.py`)
 
 该脚本负责将 TensorBoard 的二进制日志转换成 CSV。它会自动识别路径末尾的文件夹名作为文件名。
 
@@ -106,7 +126,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### 2. 精准绘图脚本 (`scripts/plot_results.py`)
+### 2. 创建精准绘图脚本 (`scripts/plot_results.py`)
 
 该脚本读取 CSV，并为每个指标生成“背景噪声+主趋势线”的高清图，且自动分类存放。
 
