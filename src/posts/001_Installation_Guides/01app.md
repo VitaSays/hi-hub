@@ -1,34 +1,239 @@
 ---
-title: Isaac Sim 安装详细指南  # <-- 这决定了侧边栏显示的文字
-shortTitle: 安装指南            # <-- (可选) 如果标题太长，导航栏会优先显示这个短标题
-icon: gear                    # <-- 为文章添加一个图标
-order: 1                      # <-- 决定在文件夹内的排序，数字越小越靠前
+title: 搭建强化学习绘制工具
 ---
-## 前言
 
-在这里写下你开启这个课题的心路历程。例如：作为一名研究机械臂避障规划的研究生，我选择使用 **NVIDIA Isaac Sim** 进行数字孪生仿真。
+# 搭建强化学习科研绘图工具
 
+## 一、为什么要搭建这个工具
 
+**TensorBoard 是给“程序员”看的监控器，而论文图是给“审稿人”看的成果展示图。**
 
-## 学习计划
-
-1. [x] 完成 VuePress 博客搭建。
-2. [ ] 在 Isaac Sim 中导入 UR12e 模型。
-3. [ ] 配置 Lula RMPflow 实现基础避障。
-4. [ ] 编写毕业论文初稿。
-
-> **提示**：保持代码简洁，正如我的博客口号：“万物归一，大道至简”。
+在强化学习训练过程中，为了解决 **TensorBoard 图片无法直接高质量下载、难以满足论文排版规范** 的问题，我们搭建了一个基于 Python 的强化学习曲线绘制工具。
 
 ---
 
-## 示例代码
+## 二、解决思路
 
-这是一个简单的 Python 脚本片段示例：
+### 第一步：提取数据
+- 从 TensorBoard 日志中提取训练曲线数据。
+- 将原始二进制数据转换为通用的 **CSV 表格**。
+
+### 第二步：绘制图片
+- 读取 CSV 数据，进行**平滑处理**（Exponential Moving Average）。
+- **双层渲染**：同时绘制原始波动曲线（Raw）和平滑后的趋势曲线（Smoothed）。
+- **学术定制**：自定义字体（衬线体）、颜色、高 DPI 以及图例。
+- **自动化管理**：按实验名称自动创建文件夹，输出高清 PNG 图片，满足论文、汇报和答辩需求。
+
+---
+
+## 三、搭建工具结构
+
+创建一个 **drawing_tool** 文件夹，其目录结构如下：
+
+
+
+```text
+drawing_tool/
+├── image_env/              # 虚拟环境（存放安装的库）
+├── scripts/                # 存放 Python 源代码
+│   ├── extract_data.py     # 脚本1：数据提取
+│   └── plot_results.py     # 脚本2：精准绘图
+├── data/                   # 存放导出的 CSV 原始数据
+└── figures/                # 存放生成的 PNG 图片
+    └── [实验日期_名称]/      # 自动按实验生成的子文件夹
+```
+
+---
+
+## 四、环境配置
+
+在 `drawing_tool` 目录下执行以下命令，建立独立的绘图环境：
+
+# 1. 创建并激活虚拟环境
+```bash
+python3 -m venv image_env
+```
+```bash
+source image_env/bin/activate
+```
+
+# 2. 安装核心依赖
+```bash
+pip install tbparse pandas matplotlib seaborn
+```
+
+---
+
+## 五、具体功能实现
+
+### 1. 数据提取脚本 (`scripts/extract_data.py`)
+
+该脚本负责将 TensorBoard 的二进制日志转换成 CSV。它会自动识别路径末尾的文件夹名作为文件名。
 
 ```python
-from isaacsim.robot_motion.motion_generation import RmpFlow
+import os
+import pandas as pd
+from tbparse import SummaryReader
 
-# 初始化 RmpFlow
-def init_robot():
-    print("正在加载 UR12e 配置文件...")
-    # 逻辑代码写在这里
+# --- 配置区 ---
+# 修改为你需要提取的 TensorBoard 日志路径
+LOG_DIR = "/home/isst/IsaacLab/logs/skrl/reach_ur10/2026-04-02_20-12-40_ppo_torch"
+
+# 自动化命名：提取路径最后一部分作为文件名
+exp_name = os.path.basename(LOG_DIR.rstrip("/"))
+OUTPUT_CSV = os.path.join("../data", f"{exp_name}.csv")
+# --------------
+
+def main():
+    if not os.path.exists(LOG_DIR):
+        print(f"❌ 路径不存在：{LOG_DIR}")
+        return
+
+    print(f"🚀 正在提取实验数据: {exp_name}")
+    
+    # pivot=True 会自动将指标（Reward, Loss等）转换为列
+    reader = SummaryReader(LOG_DIR, pivot=True)
+    df = reader.scalars
+
+    if df.empty:
+        print("❓ 警告：该路径下未发现有效的 TensorBoard 数据。")
+    else:
+        os.makedirs("../data", exist_ok=True)
+        df.to_csv(OUTPUT_CSV, index=False)
+        print(f"✅ 提取成功！CSV 已存至: {OUTPUT_CSV}")
+
+if __name__ == "__main__":
+    main()
+```
+
+### 2. 精准绘图脚本 (`scripts/plot_results.py`)
+
+该脚本读取 CSV，并为每个指标生成“背景噪声+主趋势线”的高清图，且自动分类存放。
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import seaborn as sns
+import os
+
+# --- 核心配置区 ---
+# 填入你需要画图的实验名称（需与 data 文件夹下的 CSV 文件名一致）
+EXP_NAME = "2026-04-02_20-12-40_ppo_torch"
+
+DATA_PATH = f"../data/{EXP_NAME}.csv"
+OUTPUT_DIR = f"../figures/{EXP_NAME}"
+SMOOTH_SPAN = 5  # 平滑系数，越小越还原波动细节
+# -----------------
+
+def plot_all_metrics():
+    if not os.path.exists(DATA_PATH):
+        print(f"❌ 找不到数据文件: {DATA_PATH}")
+        return
+
+    # 加载并排序数据
+    df = pd.read_csv(DATA_PATH).sort_values('step')
+
+    # 设置学术绘图风格
+    sns.set_theme(style="ticks") 
+    plt.rcParams.update({
+        "font.family": "serif",      # 使用衬线字体（模拟 Times New Roman）
+        "font.size": 11,
+        "axes.grid": True,           # 开启网格
+        "grid.linestyle": "--",
+        "grid.alpha": 0.6
+    })
+
+    # 自动创建实验对应的子文件夹
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    # 自动获取所有指标列
+    metrics = [c for c in df.columns if c not in ['step', 'wall_time', 'dir_name']]
+    
+    print(f"🚀 正在为实验 [{EXP_NAME}] 生成 {len(metrics)} 张高清图片...")
+
+    for m in metrics:
+        fig = plt.figure(figsize=(8, 5), dpi=300)
+        ax = fig.add_subplot(111)
+
+        # 1. 绘制原始数据 (Raw) - 灰色透明背景，不省略任何数据细节
+        ax.plot(df['step'], df[m], color='gray', alpha=0.3, label='Raw', linewidth=0.8)
+        
+        # 2. 绘制平滑数据 (Smoothed) - 蓝色主趋势线
+        smoothed = df[m].ewm(span=SMOOTH_SPAN).mean()
+        ax.plot(df['step'], smoothed, color='#1f77b4', linewidth=2, label='Smoothed')
+
+        # 3. 细节美化与坐标轴处理
+        ax.set_xlabel("Training Steps", fontweight='bold')
+        ax.set_ylabel(m.split('/')[-1].strip(), fontweight='bold')
+        ax.set_title(f"{EXP_NAME}\n{m.strip()}", fontsize=10, pad=10)
+        
+        # 坐标轴单位转换（如 10000 变为 10k）
+        ax.xaxis.set_major_formatter(ticker.EngFormatter())
+        ax.legend(loc='lower right', frameon=True)
+
+        # 4. 清理文件名并保存
+        safe_name = m.strip().replace('/', '_').replace(' ', '_').replace('(', '').replace(')', '').replace('__', '_')
+        plt.tight_layout()
+        plt.savefig(os.path.join(OUTPUT_DIR, f"{safe_name}.png"), bbox_inches='tight')
+        plt.close(fig) 
+        print(f" ✅ 已生成: {safe_name}.png")
+
+    print(f"\n🎉 任务完成！所有图片已放入: {OUTPUT_DIR}")
+
+if __name__ == "__main__":
+    plot_all_metrics()
+```
+
+---
+
+## 六、日常科研工作使用
+
+
+
+每当你在 Isaac Lab 中完成了一次实验，只需按照以下步骤操作：
+
+
+### 第 1 步：进入脚本工作目录
+
+```bash
+cd ~/drawing_tool/scripts
+```
+
+### 第 2 步：激活绘图专用环境
+
+```bash
+source ../image_env/bin/activate
+```
+确保终端开头出现 `(image_env)` 字样。
+
+### 第 3 步：提取数据
+1. 在 VS Code 中打开 `extract_data.py`。
+2. 将 `LOG_DIR` 修改为你最新的 TensorBoard 日志路径。
+3. 在终端运行：
+```bash
+python3 extract_data.py
+```
+*此步完成后，`data/` 目录下会自动生成一个与实验同名的 `.csv` 文件。*
+
+### 第 4 步：批量绘图（图片“美容”）
+1. 在 VS Code 中打开 `plot_results.py`。
+2. 将 `EXP_NAME` 修改为刚才生成的 CSV 文件名（不含后缀）。
+3. 在终端运行：
+```bash
+python3 plot_results.py
+```
+*此步完成后，程序会自动在 `figures/` 下创建一个以实验命名的子文件夹。*
+
+### 第 5 步：收获高清成果
+1. 进入 `../figures/[实验名]/` 文件夹。
+2. 此时你会看到 19 个指标对应的独立 PNG 图片。
+3. **论文建议**：挑选 `Total_reward_mean.png` 和 `end_effector_position_tracking.png` 等核心指标直接贴入论文。
+
+
+
+---
+**小贴士：** - 如果投稿顶级期刊，可以将代码中的 `.png` 后缀改为 `.pdf`，从而获得无限放大的矢量图。
+- 始终保留原始数据（Raw）的浅色线，这是向审稿人展示算法真实分布和稳定性的关键证据。
+
+
