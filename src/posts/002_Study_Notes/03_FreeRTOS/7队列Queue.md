@@ -1,5 +1,5 @@
 ---
-title:7 队列Queue
+title: 7 队列Queue
 ---
 # 队列Queue知识点总结
 
